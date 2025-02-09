@@ -1,36 +1,46 @@
 import pandas as pd
-import pickle
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.pipeline import make_pipeline
+import pickle
 
 # Load dataset
-df = pd.read_csv("model/dataset.csv")
+data = pd.read_csv('model/data.csv')
 
-# Encode symptoms and medicines
-encoder = LabelEncoder()
-df["medicine"] = encoder.fit_transform(df["medicine"])
+# Check for missing values
+print("Checking for missing values:")
+print(data.isna().sum())
 
-# Save label encoding for later use
-with open("model/label_encoder.pkl", "wb") as f:
-    pickle.dump(encoder, f)
+# Drop rows where 'medicine' column is missing (alternative: you can fill missing values using fillna)
+data = data.dropna(subset=['medicine'])
 
-# Define features and labels
-X = df[["symptom1", "symptom2", "symptom3"]]
-y = df["medicine"]
+# Prepare feature and target variables
+# We will use 'symptom1', 'symptom2', 'symptom3' as features
+# and 'medicine' as the target variable
+features = data[['symptom1', 'symptom2', 'symptom3']].apply(lambda x: ' '.join(x), axis=1)
+target = data['medicine']
 
-# Convert categorical features to numerical values
-X = X.apply(encoder.fit_transform)
+# Split data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
 
-# Split data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Create a pipeline with a CountVectorizer and a Naive Bayes classifier
+model = make_pipeline(CountVectorizer(), MultinomialNB())
 
-# Train model
-model = RandomForestClassifier(n_estimators=100, random_state=42)
+# Train the model
+print("Training the model...")
 model.fit(X_train, y_train)
 
-# Save trained model
-with open("model/model.pkl", "wb") as f:
-    pickle.dump(model, f)
+# Test the model's accuracy
+accuracy = model.score(X_test, y_test)
+print(f'Model accuracy: {accuracy * 100:.2f}%')
 
-print("Model trained and saved successfully!")
+# Save the trained model to a file
+with open('model.pkl', 'wb') as model_file:
+    pickle.dump(model, model_file)
+
+# Optionally save the trained model to a separate file if you want
+with open('train_model.pkl', 'wb') as train_model_file:
+    pickle.dump(model, train_model_file)
+
+print("Model training complete and saved.")
